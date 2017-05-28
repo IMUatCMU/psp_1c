@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 )
 
 type List interface {
@@ -21,7 +21,7 @@ type List interface {
 }
 
 type list struct {
-	data 	[]interface{}
+	data []interface{}
 }
 
 func (l *list) Print() {
@@ -31,7 +31,7 @@ func (l *list) Print() {
 }
 
 func (l *list) Remove(index int) error {
-	if index < 0 || index > len(l.data) - 1 {
+	if index < 0 || index > len(l.data)-1 {
 		return errors.New("index out of bound")
 	}
 	l.data = append(l.data[:index], l.data[index+1:]...)
@@ -49,10 +49,10 @@ func (l *list) Add(index int, entry interface{}) error {
 }
 
 func NewList() List {
-	return &list{data:make([]interface{}, 0, 20)}
+	return &list{data: make([]interface{}, 0, 20)}
 }
 
-func main()  {
+func main() {
 	errCheck := func(err error) {
 		if err != nil {
 			panic(err)
