@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"sort"
 )
 
 type List interface {
@@ -17,6 +19,16 @@ type List interface {
 	//
 	// returns error if index is out of bounds
 	Add(index int, entry interface{}) error
+
+	// Sort the list
+	Sort(ascending bool) error
+
+	// decides the order of two elements
+	lessThan(a, b interface{}) bool
+
+	// Split the list at given index, the item at the given index
+	// belongs to the second list
+	Split(index int) (first List, second List, err error)
 }
 
 type NumList interface {
@@ -48,6 +60,7 @@ var (
 	errCapacityReached = func(cap int) error { return fmt.Errorf("capacity reached: cap=%d", cap) }
 	errLengthExceeded  = func(maxLen int) error { return fmt.Errorf("length exceeded: max=%d", maxLen) }
 	errInvalidType     = func(exp string) error { return fmt.Errorf("invalid argument type, expected %s", exp) }
+	errUnsortable      = errors.New("cannot perform sort on containing data type")
 )
 
 type list struct {
@@ -107,6 +120,44 @@ func (l *list) Add(index int, entry interface{}) error {
 	return nil
 }
 
+func (l *list) Sort(ascending bool) error {
+	if l.dt == unspecified {
+		return errUnsortable
+	}
+	s := ByOrder{
+		Data:     l.data,
+		Asc:      ascending,
+		LessThan: l.lessThan,
+	}
+	sort.Sort(s)
+	l.data = s.Data
+	return nil
+}
+
+func (l *list) lessThan(a, b interface{}) bool {
+	switch l.dt {
+	case intType:
+		return a.(int) < b.(int)
+	case stringType:
+		return a.(string) < b.(string)
+	default:
+		panic(errInvalidType("string or integer"))
+	}
+}
+
+func (l *list) Split(index int) (first List, second List, err error) {
+	if index < 0 || index > len(l.data)-1 {
+		return nil, nil, errIndexOutOfBound(index)
+	} else if index == 0 {
+		return &list{data: make([]interface{}, 0, maxListCapacity), dt: l.dt}, l, nil
+	} else if index == len(l.data)-1 {
+		return l, &list{data: make([]interface{}, 0, maxListCapacity), dt: l.dt}, nil
+	} else {
+		a, b := l.data[:index], l.data[index:]
+		return &list{data: a, dt: l.dt}, &list{data: b, dt: l.dt}, nil
+	}
+}
+
 func (l *list) Update(index int, entry string) error {
 	if index < 0 || index > len(l.data)-1 {
 		return errIndexOutOfBound(index)
@@ -115,6 +166,28 @@ func (l *list) Update(index int, entry string) error {
 	}
 	l.data[index] = entry
 	return nil
+}
+
+type ByOrder struct {
+	Data     []interface{}
+	Asc      bool
+	LessThan func(a, b interface{}) bool
+}
+
+func (s ByOrder) Len() int {
+	return len(s.Data)
+}
+
+func (s ByOrder) Swap(i, j int) {
+	s.Data[i], s.Data[j] = s.Data[j], s.Data[i]
+}
+
+func (s ByOrder) Less(i, j int) bool {
+	if s.Asc {
+		return s.LessThan(s.Data[i], s.Data[j])
+	} else {
+		return !s.LessThan(s.Data[i], s.Data[j])
+	}
 }
 
 func NewList() List {
