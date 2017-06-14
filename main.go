@@ -1,13 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"sort"
-	"os"
-	"log"
-	"bytes"
 	"io/ioutil"
+	"log"
+	"os"
+	"sort"
 )
 
 const (
