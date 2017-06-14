@@ -4,6 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"os"
+	"log"
+	"bytes"
+	"io/ioutil"
+)
+
+const (
+	defaultFileName = "psp4c.txt"
 )
 
 type List interface {
@@ -29,6 +37,9 @@ type List interface {
 	// Split the list at given index, the item at the given index
 	// belongs to the second list
 	Split(index int) (first List, second List, err error)
+
+	// Write to file
+	WriteToFile(fileName string) error
 }
 
 type NumList interface {
@@ -166,6 +177,30 @@ func (l *list) Update(index int, entry string) error {
 	}
 	l.data[index] = entry
 	return nil
+}
+
+func (l *list) WriteToFile(fileName string) error {
+	if len(fileName) == 0 {
+		fileName = "/tmp/" + defaultFileName
+	}
+
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		if _, err := os.Create(fileName); err != nil {
+			return err
+		}
+	} else {
+		log.Println("file already exists, will overwrite.")
+	}
+
+	return ioutil.WriteFile(fileName, l.fileContent(), 0644)
+}
+
+func (l *list) fileContent() []byte {
+	var b bytes.Buffer
+	for _, e := range l.data {
+		b.WriteString(fmt.Sprintf("%v\n", e))
+	}
+	return b.Bytes()
 }
 
 type ByOrder struct {

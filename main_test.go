@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"os"
+	"io/ioutil"
 )
 
 const (
@@ -475,6 +477,89 @@ func TestList_Split(t *testing.T) {
 			a.Print()
 			b.Print()
 			fmt.Println()
+		}
+	}
+}
+
+func TestList_WriteToFile(t *testing.T) {
+	for i, test := range []struct{
+		fileName 	string
+		list 		func() List
+		expectedFile	string
+		expectedContent string
+	}{
+		{
+			"/tmp/52DB7899-E20B-4166-9E20-BA22A6250A1D.txt",
+			func() List {
+				l := NewStringList()
+				l.Add(0, "a")
+				l.Add(1, "b")
+				l.Add(2, "c")
+				return l
+			},
+			"/tmp/52DB7899-E20B-4166-9E20-BA22A6250A1D.txt",
+			"a\nb\nc\n",
+		},
+		{
+			"/tmp/D36C27D7-EDD7-48EC-8421-25CB771CAFB0.txt",
+			func() List {
+				l := NewNumList()
+				l.Add(0, 1)
+				l.Add(1, 2)
+				l.Add(2, 3)
+				return l
+			},
+			"/tmp/D36C27D7-EDD7-48EC-8421-25CB771CAFB0.txt",
+			"1\n2\n3\n",
+		},
+		{
+			"/tmp/" + defaultFileName,
+			func() List {
+				l := NewStringList()
+				l.Add(0, "a")
+				l.Add(1, "b")
+				l.Add(2, "c")
+				return l
+			},
+			"/tmp/" + defaultFileName,
+			"a\nb\nc\n",
+		},
+		{
+			"/tmp/" + defaultFileName,
+			func() List {
+				l := NewStringList()
+				l.Add(0, "a")
+				l.Add(1, "b")
+				l.Add(2, "c")
+				return l
+			},
+			"/tmp/" + defaultFileName,
+			"a\nb\nc\n",
+		},
+	}{
+		t.Logf("testing case %d\n", i + 1)
+
+		l := test.list()
+		err := l.WriteToFile(test.fileName)
+		if err != nil {
+			t.Error(err)
+			t.FailNow()
+		}
+
+		if _, err := os.Stat(test.expectedFile); os.IsNotExist(err) {
+			t.Errorf("Expected %s to exist", test.expectedFile)
+			t.FailNow()
+		}
+
+		b, err := ioutil.ReadFile(test.expectedFile)
+		if err != nil {
+			t.Errorf("Expected reading %s is error free", test.expectedFile)
+			t.FailNow()
+		}
+
+		if string(b) != test.expectedContent {
+			t.Errorf("expected %s, got %s", test.expectedContent, string(b))
+			t.FailNow()
 		}
 	}
 }
