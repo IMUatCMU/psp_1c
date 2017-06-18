@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -8,11 +9,56 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 const (
 	defaultFileName = "psp4c.txt"
 )
+
+func ReadList(filePath string) (List, error) {
+	l := &list{}
+
+	if file, err := os.Open(filePath); err != nil {
+		return nil, err
+	} else {
+		defer file.Close()
+		scanner := bufio.NewScanner(file)
+		i := 0
+
+		for scanner.Scan() {
+			if i == 0 {
+				if num, err := strconv.Atoi(strings.TrimSpace(scanner.Text())); err != nil {
+					return nil, err
+				} else {
+					l.dt = dataType(num)
+				}
+			} else {
+				switch l.dt {
+				case intType:
+					if num, err := strconv.Atoi(strings.TrimSpace(scanner.Text())); err != nil {
+						return nil, err
+					} else {
+						l.Add(i-1, num)
+					}
+				case stringType:
+					l.Add(i-1, strings.TrimSpace(scanner.Text()))
+				default:
+					return nil, errInvalidType("string or number")
+				}
+			}
+
+			if len(l.data) > maxListCapacity {
+				return nil, errCapacityReached(maxListCapacity)
+			}
+
+			i++
+		}
+	}
+
+	return l, nil
+}
 
 type List interface {
 	// print out the list and order of the items
@@ -40,6 +86,12 @@ type List interface {
 
 	// Write to file
 	WriteToFile(fileName string) error
+
+	// Merge with another list
+	Merge(another List) (List, error)
+
+	// Check if the list is sorted (ascending or descending)
+	IsSorted(expectAsc bool) (bool, error)
 }
 
 type NumList interface {
@@ -156,6 +208,17 @@ func (l *list) lessThan(a, b interface{}) bool {
 	}
 }
 
+func (l *list) greaterThan(a, b interface{}) bool {
+	switch l.dt {
+	case intType:
+		return a.(int) > b.(int)
+	case stringType:
+		return a.(string) > b.(string)
+	default:
+		panic(errInvalidType("string or integer"))
+	}
+}
+
 func (l *list) Split(index int) (first List, second List, err error) {
 	if index < 0 || index > len(l.data)-1 {
 		return nil, nil, errIndexOutOfBound(index)
@@ -195,8 +258,66 @@ func (l *list) WriteToFile(fileName string) error {
 	return ioutil.WriteFile(fileName, l.fileContent(), 0644)
 }
 
+func (l *list) Merge(another List) (l1 List, err error) {
+	l0 := another.(*list)
+	if l.dt != l0.dt {
+		return nil, errInvalidType("same: string or number")
+	}
+
+	switch l.dt {
+	case stringType:
+		l1 = NewStringList()
+	case intType:
+		l1 = NewNumList()
+	}
+
+	for _, e := range l.data {
+		if len(l1.(*list).data) >= maxListCapacity {
+			err = errCapacityReached(maxListCapacity)
+			break
+		}
+		l1.(*list).data = append(l1.(*list).data, e)
+	}
+
+	for _, e := range l0.data {
+		if len(l1.(*list).data) >= maxListCapacity {
+			err = errCapacityReached(maxListCapacity)
+			break
+		}
+		l1.(*list).data = append(l1.(*list).data, e)
+	}
+
+	return l1, err
+}
+
+func (l *list) IsSorted(expectAsc bool) (bool, error) {
+	switch l.dt {
+	case stringType:
+	case intType:
+	default:
+		return false, errInvalidType("string or number")
+	}
+
+	for i := range l.data {
+		if i > 0 {
+			if expectAsc {
+				if l.greaterThan(l.data[i-1], l.data[i]) {
+					return false, nil
+				}
+			} else {
+				if l.lessThan(l.data[i-1], l.data[i]) {
+					return false, nil
+				}
+			}
+		}
+	}
+
+	return true, nil
+}
+
 func (l *list) fileContent() []byte {
 	var b bytes.Buffer
+	b.WriteString(fmt.Sprintf("%d\n", l.dt))
 	for _, e := range l.data {
 		b.WriteString(fmt.Sprintf("%v\n", e))
 	}
