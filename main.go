@@ -92,6 +92,9 @@ type List interface {
 
 	// Check if the list is sorted (ascending or descending)
 	IsSorted(expectAsc bool) (bool, error)
+
+	// Convert to Stack
+	ToStack() Stack
 }
 
 type NumList interface {
@@ -313,6 +316,10 @@ func (l *list) IsSorted(expectAsc bool) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (l *list) ToStack() Stack {
+	return &stack{list: l}
 }
 
 func (l *list) fileContent() []byte {
