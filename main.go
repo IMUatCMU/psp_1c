@@ -95,6 +95,9 @@ type List interface {
 
 	// Convert to Stack
 	ToStack() Stack
+
+	// Convert to Queue
+	ToQueue() Queue
 }
 
 type NumList interface {
@@ -320,6 +323,10 @@ func (l *list) IsSorted(expectAsc bool) (bool, error) {
 
 func (l *list) ToStack() Stack {
 	return &stack{list: l}
+}
+
+func (l *list) ToQueue() Queue {
+	return &queue{list: l}
 }
 
 func (l *list) fileContent() []byte {
