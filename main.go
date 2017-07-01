@@ -61,6 +61,8 @@ func ReadList(filePath string) (List, error) {
 }
 
 type List interface {
+	Stat
+
 	// print out the list and order of the items
 	Print()
 
@@ -135,6 +137,31 @@ var (
 type list struct {
 	data []interface{}
 	dt   dataType
+	stat Stat
+}
+
+func (l *list) Count() (int, error) {
+	return l.stat.Count()
+}
+
+func (l *list) Average() (float64, error) {
+	return l.stat.Average()
+}
+
+func (l *list) Max() (int, error) {
+	return l.stat.Max()
+}
+
+func (l *list) Min() (int, error) {
+	return l.stat.Min()
+}
+
+func (l *list) Mean() (float64, error) {
+	return l.stat.Mean()
+}
+
+func (l *list) Std() (float64, error) {
+	return l.stat.Std()
 }
 
 func (l *list) typeCheck(arg interface{}) error {
@@ -361,15 +388,19 @@ func (s ByOrder) Less(i, j int) bool {
 }
 
 func NewList() List {
-	return &list{data: make([]interface{}, 0, maxListCapacity), dt: unspecified}
+	return &list{data: make([]interface{}, 0, maxListCapacity), dt: unspecified, stat: noStat{}}
 }
 
 func NewNumList() NumList {
-	return &list{data: make([]interface{}, 0, maxListCapacity), dt: intType}
+	l := &list{data: make([]interface{}, 0, maxListCapacity), dt: intType}
+	l.stat = numberStat{l: l}
+	return l
 }
 
 func NewStringList() StringList {
-	return &list{data: make([]interface{}, 0, maxListCapacity), dt: stringType}
+	l := &list{data: make([]interface{}, 0, maxListCapacity), dt: stringType}
+	l.stat = stringStat{l: l}
+	return l
 }
 
 func main() {
