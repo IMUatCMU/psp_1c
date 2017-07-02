@@ -48,11 +48,6 @@ func ReadList(filePath string) (List, error) {
 					return nil, errInvalidType("string or number")
 				}
 			}
-
-			if len(l.data) > maxListCapacity {
-				return nil, errCapacityReached(maxListCapacity)
-			}
-
 			i++
 		}
 	}
@@ -122,13 +117,11 @@ const (
 	intType     dataType = 1
 	stringType  dataType = 2
 
-	maxListCapacity int = 20
 	maxStringLength int = 250
 )
 
 var (
 	errIndexOutOfBound = func(i int) error { return fmt.Errorf("index out of bound: %d", i) }
-	errCapacityReached = func(cap int) error { return fmt.Errorf("capacity reached: cap=%d", cap) }
 	errLengthExceeded  = func(maxLen int) error { return fmt.Errorf("length exceeded: max=%d", maxLen) }
 	errInvalidType     = func(exp string) error { return fmt.Errorf("invalid argument type, expected %s", exp) }
 	errUnsortable      = errors.New("cannot perform sort on containing data type")
@@ -167,7 +160,10 @@ func (l *list) Std() (float64, error) {
 func (l *list) typeCheck(arg interface{}) error {
 	switch l.dt {
 	case intType:
-		if _, ok := arg.(int); !ok {
+		switch arg.(type) {
+		case int, int16, int32, int64:
+		case float32, float64:
+		default:
 			return errInvalidType("int")
 		}
 	case stringType:
@@ -202,8 +198,6 @@ func (l *list) Remove(index int) error {
 func (l *list) Add(index int, entry interface{}) error {
 	if index < 0 || index > len(l.data) {
 		return errIndexOutOfBound(index)
-	} else if len(l.data) == 20 {
-		return errCapacityReached(maxListCapacity)
 	} else if err := l.typeCheck(entry); err != nil {
 		return err
 	}
@@ -212,13 +206,31 @@ func (l *list) Add(index int, entry interface{}) error {
 			return err
 		}
 	}
-	l.data = append(l.data[:index], append([]interface{}{entry}, l.data[index:]...)...)
+	switch l.dt {
+	case intType:
+		var newElem int
+		switch entry.(type) {
+		case int, int16, int32, int64:
+			newElem = entry.(int)
+		case float32:
+			newElem = int(entry.(float32))
+		case float64:
+			newElem = int(entry.(float64))
+		default:
+			return errInvalidType("int")
+		}
+		l.data = append(l.data[:index], append([]interface{}{newElem}, l.data[index:]...)...)
+	default:
+		l.data = append(l.data[:index], append([]interface{}{entry}, l.data[index:]...)...)
+	}
 	return nil
 }
 
 func (l *list) Sort(ascending bool) error {
 	if l.dt == unspecified {
 		return errUnsortable
+	} else if len(l.data) == 0 {
+		return ErrEmpty
 	}
 	s := ByOrder{
 		Data:     l.data,
@@ -256,9 +268,9 @@ func (l *list) Split(index int) (first List, second List, err error) {
 	if index < 0 || index > len(l.data)-1 {
 		return nil, nil, errIndexOutOfBound(index)
 	} else if index == 0 {
-		return &list{data: make([]interface{}, 0, maxListCapacity), dt: l.dt}, l, nil
+		return &list{data: make([]interface{}, 0), dt: l.dt}, l, nil
 	} else if index == len(l.data)-1 {
-		return l, &list{data: make([]interface{}, 0, maxListCapacity), dt: l.dt}, nil
+		return l, &list{data: make([]interface{}, 0), dt: l.dt}, nil
 	} else {
 		a, b := l.data[:index], l.data[index:]
 		return &list{data: a, dt: l.dt}, &list{data: b, dt: l.dt}, nil
@@ -305,18 +317,10 @@ func (l *list) Merge(another List) (l1 List, err error) {
 	}
 
 	for _, e := range l.data {
-		if len(l1.(*list).data) >= maxListCapacity {
-			err = errCapacityReached(maxListCapacity)
-			break
-		}
 		l1.(*list).data = append(l1.(*list).data, e)
 	}
 
 	for _, e := range l0.data {
-		if len(l1.(*list).data) >= maxListCapacity {
-			err = errCapacityReached(maxListCapacity)
-			break
-		}
 		l1.(*list).data = append(l1.(*list).data, e)
 	}
 
@@ -388,17 +392,17 @@ func (s ByOrder) Less(i, j int) bool {
 }
 
 func NewList() List {
-	return &list{data: make([]interface{}, 0, maxListCapacity), dt: unspecified, stat: noStat{}}
+	return &list{data: make([]interface{}, 0), dt: unspecified, stat: noStat{}}
 }
 
 func NewNumList() NumList {
-	l := &list{data: make([]interface{}, 0, maxListCapacity), dt: intType}
+	l := &list{data: make([]interface{}, 0), dt: intType}
 	l.stat = numberStat{l: l}
 	return l
 }
 
 func NewStringList() StringList {
-	l := &list{data: make([]interface{}, 0, maxListCapacity), dt: stringType}
+	l := &list{data: make([]interface{}, 0), dt: stringType}
 	l.stat = stringStat{l: l}
 	return l
 }
